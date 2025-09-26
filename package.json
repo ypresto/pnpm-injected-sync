@@ -1,0 +1,31 @@
+{
+  "name": "pnpm-injected-sync",
+  "version": "0.0.1",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "pnpm-injected-sync": "./index.js"
+  },
+  "scripts": {
+    "prepare": "pnpm run build",
+    "build": "tsc",
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pnpm/error": "^1000.0.5",
+    "@pnpm/logger": "^1001.0.0",
+    "@pnpm/modules-yaml": "^1000.3.4",
+    "@pnpm/workspace.injected-deps-syncer": "^1000.0.11",
+    "normalize-path": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/normalize-path": "^3.0.2",
+    "typescript": "^5.9.2"
+  }
+}
