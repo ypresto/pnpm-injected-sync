@@ -61,7 +61,7 @@ pnpm-injected-sync run "npm run dev"
 
 ## Environment Variables
 
-### `PNPM_INJECTED_SYNC_DISABLE`
+### `PNPM_INJECTED_SYNC_DISABLED`
 
 Set to a truthy value to disable all syncing functionality. Useful for CI environments or when you want to temporarily disable syncing.
 

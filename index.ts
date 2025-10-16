@@ -21,7 +21,7 @@ interface SharedWatcherState extends WatcherState {
 }
 
 function isSyncDisabled(): boolean {
-  const value = process.env.PNPM_INJECTED_SYNC_DISABLE
+  const value = process.env.PNPM_INJECTED_SYNC_DISABLED
   if (!value) return false
   const normalized = value.toLowerCase()
   return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
@@ -124,7 +124,7 @@ function setupWatcher(
 
 async function runSyncCommand(): Promise<void> {
   if (isSyncDisabled()) {
-    console.log('Sync disabled via PNPM_INJECTED_SYNC_DISABLE')
+    console.log('Sync disabled via PNPM_INJECTED_SYNC_DISABLED')
     return
   }
 
@@ -160,7 +160,7 @@ async function runSyncCommand(): Promise<void> {
 
 async function runWatchCommand(): Promise<void> {
   if (isSyncDisabled()) {
-    console.log('Watch disabled via PNPM_INJECTED_SYNC_DISABLE')
+    console.log('Watch disabled via PNPM_INJECTED_SYNC_DISABLED')
     return
   }
 
@@ -458,7 +458,7 @@ async function runCommand(args: string[]): Promise<void> {
       }, 2000) // Check every 2 seconds
     }
   } else {
-    console.log('[sync] Sync disabled via PNPM_INJECTED_SYNC_DISABLE')
+    console.log('[sync] Sync disabled via PNPM_INJECTED_SYNC_DISABLED')
   }
 
   // Spawn the child process

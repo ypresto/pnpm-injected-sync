@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import { readModulesManifest } from '@pnpm/modules-yaml';
 import { syncInjectedDeps } from '@pnpm/workspace.injected-deps-syncer';
 function isSyncDisabled() {
-    const value = process.env.PNPM_INJECTED_SYNC_DISABLE;
+    const value = process.env.PNPM_INJECTED_SYNC_DISABLED;
     if (!value)
         return false;
     const normalized = value.toLowerCase();
@@ -84,7 +84,7 @@ function setupWatcher(pkgDir, workspaceDir, state) {
 }
 async function runSyncCommand() {
     if (isSyncDisabled()) {
-        console.log('Sync disabled via PNPM_INJECTED_SYNC_DISABLE');
+        console.log('Sync disabled via PNPM_INJECTED_SYNC_DISABLED');
         return;
     }
     const cwd = process.cwd();
@@ -111,7 +111,7 @@ async function runSyncCommand() {
 }
 async function runWatchCommand() {
     if (isSyncDisabled()) {
-        console.log('Watch disabled via PNPM_INJECTED_SYNC_DISABLE');
+        console.log('Watch disabled via PNPM_INJECTED_SYNC_DISABLED');
         return;
     }
     const cwd = process.cwd();
@@ -364,7 +364,7 @@ async function runCommand(args) {
         }
     }
     else {
-        console.log('[sync] Sync disabled via PNPM_INJECTED_SYNC_DISABLE');
+        console.log('[sync] Sync disabled via PNPM_INJECTED_SYNC_DISABLED');
     }
     // Spawn the child process
     const fullCommand = args.join(' ');
