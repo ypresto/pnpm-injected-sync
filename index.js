@@ -4,6 +4,13 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { readModulesManifest } from '@pnpm/modules-yaml';
 import { syncInjectedDeps } from '@pnpm/workspace.injected-deps-syncer';
+function isSyncDisabled() {
+    const value = process.env.PNPM_INJECTED_SYNC_DISABLE;
+    if (!value)
+        return false;
+    const normalized = value.toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
 async function findWorkspaceRoot(startDir) {
     let currentDir = startDir;
     while (currentDir !== path.dirname(currentDir)) {
@@ -35,6 +42,9 @@ async function getInjectedDepsDirs(workspaceDir) {
     return Object.keys(modules.injectedDeps).map(relPath => path.resolve(workspaceDir, relPath));
 }
 async function syncDeps(pkgDir, workspaceDir) {
+    if (isSyncDisabled()) {
+        return;
+    }
     const packageJson = await readPackageJson(pkgDir);
     const pkgName = packageJson?.name;
     const pkgRootDir = path.relative(workspaceDir, pkgDir);
@@ -73,6 +83,10 @@ function setupWatcher(pkgDir, workspaceDir, state) {
     state.watchers.set(pkgDir, watcher);
 }
 async function runSyncCommand() {
+    if (isSyncDisabled()) {
+        console.log('Sync disabled via PNPM_INJECTED_SYNC_DISABLE');
+        return;
+    }
     const cwd = process.cwd();
     const workspaceDir = await findWorkspaceRoot(cwd);
     if (!workspaceDir) {
@@ -96,6 +110,10 @@ async function runSyncCommand() {
     console.log('\nSync complete!');
 }
 async function runWatchCommand() {
+    if (isSyncDisabled()) {
+        console.log('Watch disabled via PNPM_INJECTED_SYNC_DISABLE');
+        return;
+    }
     const cwd = process.cwd();
     const workspaceDir = await findWorkspaceRoot(cwd);
     if (!workspaceDir) {
@@ -306,40 +324,47 @@ async function runCommand(args) {
     // Track child process state globally for the watcher
     let childExited = false;
     // Try to acquire lock (become the watcher)
-    let isWatcher = await acquireLock(lockFile, pid);
+    let isWatcher = false;
     let state = null;
     let promotionCheckInterval = null;
-    if (isWatcher) {
-        try {
-            state = await startWatcherMode(workspaceDir, lockFile, pid, () => childExited);
+    // Skip watcher setup if syncing is disabled
+    if (!isSyncDisabled()) {
+        isWatcher = await acquireLock(lockFile, pid);
+        if (isWatcher) {
+            try {
+                state = await startWatcherMode(workspaceDir, lockFile, pid, () => childExited);
+            }
+            catch (error) {
+                // If we can't start watcher mode, we'll just be a client
+                isWatcher = false;
+            }
         }
-        catch (error) {
-            // If we can't start watcher mode, we'll just be a client
-            isWatcher = false;
+        if (!isWatcher) {
+            // Register as a client and set up promotion monitoring
+            console.log(`[sync] Connecting to existing watcher (PID: ${pid})`);
+            await registerClient(lockFile, pid);
+            // Periodically check if we can be promoted to watcher
+            promotionCheckInterval = setInterval(async () => {
+                const canPromote = await tryPromoteToWatcher(lockFile, pid);
+                if (canPromote) {
+                    console.log(`[sync] Promoted to watcher (PID: ${pid})`);
+                    isWatcher = true;
+                    if (promotionCheckInterval) {
+                        clearInterval(promotionCheckInterval);
+                        promotionCheckInterval = null;
+                    }
+                    try {
+                        state = await startWatcherMode(workspaceDir, lockFile, pid, () => childExited);
+                    }
+                    catch (error) {
+                        console.error('[sync] Failed to start watcher after promotion:', error);
+                    }
+                }
+            }, 2000); // Check every 2 seconds
         }
     }
-    if (!isWatcher) {
-        // Register as a client and set up promotion monitoring
-        console.log(`[sync] Connecting to existing watcher (PID: ${pid})`);
-        await registerClient(lockFile, pid);
-        // Periodically check if we can be promoted to watcher
-        promotionCheckInterval = setInterval(async () => {
-            const canPromote = await tryPromoteToWatcher(lockFile, pid);
-            if (canPromote) {
-                console.log(`[sync] Promoted to watcher (PID: ${pid})`);
-                isWatcher = true;
-                if (promotionCheckInterval) {
-                    clearInterval(promotionCheckInterval);
-                    promotionCheckInterval = null;
-                }
-                try {
-                    state = await startWatcherMode(workspaceDir, lockFile, pid, () => childExited);
-                }
-                catch (error) {
-                    console.error('[sync] Failed to start watcher after promotion:', error);
-                }
-            }
-        }, 2000); // Check every 2 seconds
+    else {
+        console.log('[sync] Sync disabled via PNPM_INJECTED_SYNC_DISABLE');
     }
     // Spawn the child process
     const fullCommand = args.join(' ');
